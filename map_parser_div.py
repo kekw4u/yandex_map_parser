@@ -75,5 +75,5 @@ class YandexMapParser:
 
 
 if __name__ == '__main__':
-    ymp = YandexMapParser('Витебск ', '', ' Сантехника')
+    ymp = YandexMapParser('Ямайка ', '', ' Сантехника')
     ymp.upload_data()
