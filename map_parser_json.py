@@ -21,7 +21,7 @@ class YandexMapParser:
         self.shop = shop
 
     def __chrome_options(self) -> webdriver.ChromeOptions:
-        service = webdriver.ChromeService(executable_path="/usr/bin/chromedriver")
+        # service = webdriver.ChromeService(executable_path="/usr/bin/chromedriver")
 
         options = webdriver.ChromeOptions()
         options.add_argument("--disable-extensions")
@@ -31,15 +31,16 @@ class YandexMapParser:
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL', 'browser': 'ALL'})
         return options
 
-    def get_responses(self) -> list[Any | None]:
+    def __get_responses(self) -> list[Any | None]:
         options = self.__chrome_options()
 
         driver = webdriver.Chrome(options)
         driver.get(self.URL)
 
         search_bar = driver.find_element(By.CLASS_NAME, "input__control")
-        search_bar.send_keys(self.city+self.district, Keys.ENTER)
+        search_bar.send_keys(f'{self.city} {self.district}', Keys.ENTER)
         sleep(self.RESPONSE_WAITING_TIME)
+
         search_bar.send_keys(self.shop, Keys.ENTER)
         sleep(self.RESPONSE_WAITING_TIME)
 
@@ -56,15 +57,16 @@ class YandexMapParser:
                 break
             except:
                 continue
+
         def processLog(log):
-            logtext = log["message"]
-            logjson = json.loads(log["message"])["message"]
+            log_text = log["message"]
+            log_json = json.loads(log["message"])["message"]
             try:
                 # TODO: Фильтровать ответы, наверное, можно лучше
-                if ("api/search" in logtext):
+                if ("api/search" in log_text):
                     try:
                         body = driver.execute_cdp_cmd('Network.getResponseBody',
-                                                      {'requestId': logjson["params"]["requestId"]})
+                                                      {'requestId': log_json["params"]["requestId"]})
                         body = json.loads(body['body'])
                         if "totalResultCount" in body['data']:
                             return body
@@ -74,12 +76,13 @@ class YandexMapParser:
                 return
 
         logs = driver.get_log("performance")
+
         responses = [processLog(log) for log in logs if processLog(log) != None]
         return responses
 
-    def parse_responses(self):
+    def __parse_responses(self):
         data = ''
-        responses = self.get_responses()
+        responses = self.__get_responses()
         for response in responses:
             for item in response['data']['items']:
                 title = item['title']
@@ -96,18 +99,18 @@ class YandexMapParser:
                     url = item['urls'][0]
                 except:
                     url = ''
-                res_str = title + ' ' + address + ' ' +str(rating) +' '+phone +' '+ url + '\n'
+                res_str = f'{title};{address};{str(rating)};{phone};{url};\n'
                 if item['type'] == 'business' and res_str not in data:
                     data += res_str
         return data
 
     def upload_data(self) -> None:
-        data = self.parse_responses()
-        filename = f'data/{self.city+" "+self.district+" "+self.shop}'
+        data = self.__parse_responses()
+        filename = f'data/{self.city} {self.district} {self.shop}.csv'
         with open(filename, mode='w', encoding='utf-8') as fp:
             fp.write(data)
 
 
 if __name__ == '__main__':
-    ymp = YandexMapParser('Витебск ', '', ' Сантехника')
+    ymp = YandexMapParser('Витебск', '', 'Сантехника')
     ymp.upload_data()
