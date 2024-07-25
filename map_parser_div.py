@@ -33,7 +33,7 @@ class YandexMapParser:
         driver.get(self.URL)
 
         search_bar = driver.find_element(By.CLASS_NAME, "input__control")
-        search_bar.send_keys(self.city+self.district, Keys.ENTER)
+        search_bar.send_keys(f'{self.city} {self.district}', Keys.ENTER)
         sleep(self.RESPONSE_WAITING_TIME)
         search_bar.send_keys(self.shop, Keys.ENTER)
         sleep(self.RESPONSE_WAITING_TIME)
@@ -69,11 +69,11 @@ class YandexMapParser:
 
     def upload_data(self) -> None:
         data = self.__parse()
-        filename = f'data/{self.city+" "+self.district+" "+self.shop}'
+        filename = f'data/{self.city} {self.district} {self.shop}'
         with open(filename, mode='w', encoding='utf-8') as fp:
             fp.write(data)
 
 
 if __name__ == '__main__':
-    ymp = YandexMapParser('Ямайка ', '', ' Сантехника')
+    ymp = YandexMapParser('Витебск', '', 'Сантехника')
     ymp.upload_data()
