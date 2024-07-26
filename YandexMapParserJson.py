@@ -8,13 +8,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from time import sleep
-import time
 
 
 class YandexMapParser:
-
     URL = 'https://yandex.ru/maps/'
-    RESPONSE_WAITING_TIME = 5
+    RESPONSE_WAITING_TIME = 6
     SCROLL_PAUSE_TIME = 1
     DEFAULT_HEIGHT = 2000
 
@@ -22,12 +20,10 @@ class YandexMapParser:
     SIDE_PANEL_CONDITIONS = (By.CLASS_NAME, "search-list-view__content")
     SEARCH_BUTTON_CONDITIONS = (By.XPATH, "//button[@type='submit' and @aria-haspopup='false']")
 
-
     def __init__(self, city: str, district: str, shop: str) -> None:
         self.city = city
         self.district = district
         self.shop = shop
-
 
     def __chrome_options(self) -> webdriver.ChromeOptions:
         # service = webdriver.ChromeService(executable_path="/usr/bin/chromedriver")
@@ -39,7 +35,6 @@ class YandexMapParser:
         options.add_argument('--window-size=1920,1080')
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL', 'browser': 'ALL'})
         return options
-
 
     def __get_responses(self) -> list[Any | None]:
         options = self.__chrome_options()
@@ -71,7 +66,7 @@ class YandexMapParser:
             except:
                 continue
 
-        def processLog(log: dict) -> dict:
+        def process_log(log: dict) -> dict:
             log_text = log["message"]
             log_json = json.loads(log["message"])["message"]
             try:
@@ -88,9 +83,8 @@ class YandexMapParser:
                 return
 
         logs = driver.get_log("performance")
-        responses = [processLog(log) for log in logs if processLog(log) != None]
+        responses = [process_log(log) for log in logs if process_log(log) != None]
         return responses
-
 
     def __parse_responses(self) -> list[dict]:
         data = []
@@ -115,15 +109,15 @@ class YandexMapParser:
                 if 'metro' in item_keys:
                     shop['nearest_metro_stations'] = []
                     for metro_station in item['metro']:
-                        metro_station_dict = {'station_name' : metro_station['name'],
+                        metro_station_dict = {'station_name': metro_station['name'],
                                               'station_distance': metro_station['distanceValue']}
                         shop['nearest_metro_stations'].append(metro_station_dict)
 
                 if 'stops' in item_keys:
                     shop['nearest_bus_stops'] = []
                     for bus_stop in item['stops']:
-                        bus_stop_dict = {'bus_stop_name' : bus_stop['name'],
-                                         'bus_stop_distance' : bus_stop['distanceValue']}
+                        bus_stop_dict = {'bus_stop_name': bus_stop['name'],
+                                         'bus_stop_distance': bus_stop['distanceValue']}
                         shop['nearest_bus_stops'].append(bus_stop_dict)
 
                 if 'workingTimeText' in item_keys:
@@ -132,24 +126,12 @@ class YandexMapParser:
                 if 'socialLinks' in item_keys:
                     shop['social_links'] = item['socialLinks']
 
-
                 if item['type'] == 'business' and shop not in data:
                     data.append(shop)
         return data
-
 
     def upload_data(self) -> None:
         data = self.__parse_responses()
         filename = f'data/{self.city} {self.district} {self.shop}.json'
         with open(filename, mode='w', encoding='utf-8') as fp:
             fp.write(json.dumps(data))
-
-
-if __name__ == '__main__':
-    start = time.time()
-
-    ymp = YandexMapParser('Москва', 'Раменки', 'KFC')
-    ymp.upload_data()
-
-    finish = time.time()
-    print(f'executable time was: {finish - start} seconds')
