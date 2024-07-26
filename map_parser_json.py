@@ -132,6 +132,7 @@ class YandexMapParser:
                 if 'socialLinks' in item_keys:
                     shop['social_links'] = item['socialLinks']
 
+
                 if item['type'] == 'business' and shop not in data:
                     data.append(shop)
         return data
