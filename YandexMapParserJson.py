@@ -12,18 +12,22 @@ from time import sleep
 
 class YandexMapParser:
     URL = 'https://yandex.ru/maps/'
-    RESPONSE_WAITING_TIME = 6
+    RESPONSE_WAITING_TIME = 15
     SCROLL_PAUSE_TIME = 1
+    CLICK_WAITING_TIME = 0.5
     DEFAULT_HEIGHT = 2000
+
 
     SEARCH_BAR_CONDITIONS = (By.CLASS_NAME, "input__control")
     SIDE_PANEL_CONDITIONS = (By.CLASS_NAME, "search-list-view__content")
     SEARCH_BUTTON_CONDITIONS = (By.XPATH, "//button[@type='submit' and @aria-haspopup='false']")
 
+
     def __init__(self, city: str, district: str, shop: str) -> None:
         self.city = city
         self.district = district
         self.shop = shop
+
 
     def __chrome_options(self) -> webdriver.ChromeOptions:
         # service = webdriver.ChromeService(executable_path="/usr/bin/chromedriver")
@@ -36,6 +40,7 @@ class YandexMapParser:
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL', 'browser': 'ALL'})
         return options
 
+
     def __get_responses(self) -> list[Any | None]:
         options = self.__chrome_options()
 
@@ -46,10 +51,21 @@ class YandexMapParser:
 
         search_bar = wait.until(EC.visibility_of_element_located(self.SEARCH_BAR_CONDITIONS))
 
-        search_bar.send_keys(f'{self.city} {self.district}', Keys.ENTER)
+        #? возможно, ввод запроса стоит сделать отдельным методом
+        search_bar.send_keys(f'{self.city} {self.district}')
+        search_bar.send_keys(Keys.ENTER)
+
+        #TODO: подумать насчёт ожидания нажатия клавиши поиска
+        sleep(self.CLICK_WAITING_TIME)
+
         wait.until(EC.visibility_of_element_located(self.SEARCH_BUTTON_CONDITIONS))
 
-        search_bar.send_keys(self.shop, Keys.ENTER)
+        search_bar.send_keys(self.shop)
+        search_bar.send_keys(Keys.ENTER)
+
+        #TODO: аналогично
+        sleep(self.CLICK_WAITING_TIME)
+
         wait.until(EC.visibility_of_element_located(self.SEARCH_BUTTON_CONDITIONS))
 
         side_panel = wait.until(EC.visibility_of_element_located(self.SIDE_PANEL_CONDITIONS))
@@ -66,6 +82,8 @@ class YandexMapParser:
             except:
                 continue
 
+
+        #? объявить как отдельный статический метод класса
         def process_log(log: dict) -> dict:
             log_text = log["message"]
             log_json = json.loads(log["message"])["message"]
@@ -85,6 +103,7 @@ class YandexMapParser:
         logs = driver.get_log("performance")
         responses = [process_log(log) for log in logs if process_log(log) != None]
         return responses
+
 
     def __parse_responses(self) -> list[dict]:
         data = []
@@ -129,6 +148,7 @@ class YandexMapParser:
                 if item['type'] == 'business' and shop not in data:
                     data.append(shop)
         return data
+
 
     def upload_data(self) -> None:
         data = self.__parse_responses()
