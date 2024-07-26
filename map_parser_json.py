@@ -117,7 +117,7 @@ class YandexMapParser:
                     for metro_station in item['metro']:
                         metro_station_dict = {'station_name' : metro_station['name'],
                                               'station_distance': metro_station['distanceValue']}
-                        shop['nearset_metro_stations'].append(metro_station_dict)
+                        shop['nearest_metro_stations'].append(metro_station_dict)
 
                 if 'stops' in item_keys:
                     shop['nearest_bus_stops'] = []
