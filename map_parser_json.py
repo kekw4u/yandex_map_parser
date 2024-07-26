@@ -19,6 +19,7 @@ class YandexMapParser:
     DEFAULT_HEIGHT = 2000
 
     SEARCH_BAR_CONDITIONS = (By.CLASS_NAME, "input__control")
+    SIDE_PANEL_CONDITIONS = (By.CLASS_NAME, "search-list-view__content")
     SEARCH_BUTTON_CONDITIONS = (By.XPATH, "//button[@type='submit' and @aria-haspopup='false']")
 
 
@@ -56,7 +57,7 @@ class YandexMapParser:
         search_bar.send_keys(self.shop, Keys.ENTER)
         wait.until(EC.visibility_of_element_located(self.SEARCH_BUTTON_CONDITIONS))
 
-        side_panel = driver.find_element(By.CLASS_NAME, 'search-list-view__content')
+        side_panel = wait.until(EC.visibility_of_element_located(self.SIDE_PANEL_CONDITIONS))
         scroll_origin = ScrollOrigin.from_element(side_panel)
         total_height = self.DEFAULT_HEIGHT
 
@@ -147,7 +148,7 @@ class YandexMapParser:
 if __name__ == '__main__':
     start = time.time()
 
-    ymp = YandexMapParser('Витебск', '', 'Сантехника')
+    ymp = YandexMapParser('Москва', 'Раменки', 'KFC')
     ymp.upload_data()
 
     finish = time.time()
