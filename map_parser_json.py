@@ -62,7 +62,6 @@ class YandexMapParser:
             log_text = log["message"]
             log_json = json.loads(log["message"])["message"]
             try:
-                # TODO: Фильтровать ответы, наверное, можно лучше
                 if ("api/search" in log_text):
                     try:
                         body = driver.execute_cdp_cmd('Network.getResponseBody',
@@ -89,26 +88,33 @@ class YandexMapParser:
                 item_keys = item.keys()
                 shop['title'] = item['title']
                 shop['address'] = item['address']
+
                 if 'ratingData' in item_keys:
                     shop['rating'] = item['ratingData']
+
                 if 'phones' in item_keys:
                     shop['phones'] = item['phones']
+
                 if 'urls' in item_keys:
                     shop['urls'] = item['urls']
+
                 if 'metro' in item_keys:
                     shop['nearest_metro_stations'] = []
                     for metro_station in item['metro']:
                         metro_station_dict = {'station_name' : metro_station['name'],
                                               'station_distance': metro_station['distanceValue']}
-                        shop['nearset_metro_stations'].append(metro_station_dict)
+                        shop['nearest_metro_stations'].append(metro_station_dict)
+
                 if 'stops' in item_keys:
                     shop['nearest_bus_stops'] = []
                     for bus_stop in item['stops']:
                         bus_stop_dict = {'bus_stop_name' : bus_stop['name'],
                                          'bus_stop_distance' : bus_stop['distanceValue']}
                         shop['nearest_bus_stops'].append(bus_stop_dict)
+
                 if 'workingTimeText' in item_keys:
                     shop['working_time'] = item['workingTimeText']
+
                 if 'socialLinks' in item_keys:
                     shop['social_links'] = item['socialLinks']
 
