@@ -58,28 +58,28 @@ class YandexMapParser:
             except:
                 continue
 
-        def processLog(log):
+        def processLog(log: dict) -> dict:
             log_text = log["message"]
             log_json = json.loads(log["message"])["message"]
             try:
                 if ("api/search" in log_text):
                     try:
-                        body = driver.execute_cdp_cmd('Network.getResponseBody',
-                                                      {'requestId': log_json["params"]["requestId"]})
-                        body = json.loads(body['body'])
-                        if "totalResultCount" in body['data']:
-                            return body
+                        request_id = log_json['params']['requestId']
+                        body = driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': request_id})
+                        body_dict = json.loads(body['body'])
+                        if "totalResultCount" in body_dict['data']:
+                            return body_dict
                     except:
                         return
             except:
                 return
 
         logs = driver.get_log("performance")
-
         responses = [processLog(log) for log in logs if processLog(log) != None]
         return responses
 
-    def __parse_responses(self):
+
+    def __parse_responses(self) -> list[dict]:
         data = []
         responses = self.__get_responses()
         for response in responses:
@@ -117,6 +117,7 @@ class YandexMapParser:
 
                 if 'socialLinks' in item_keys:
                     shop['social_links'] = item['socialLinks']
+
 
                 if item['type'] == 'business' and shop not in data:
                     data.append(shop)
