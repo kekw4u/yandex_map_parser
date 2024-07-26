@@ -79,6 +79,7 @@ class YandexMapParser:
         responses = [processLog(log) for log in logs if processLog(log) != None]
         return responses
 
+
     def __parse_responses(self) -> list[dict]:
         data = []
         responses = self.__get_responses()
@@ -95,10 +96,22 @@ class YandexMapParser:
                 if 'urls' in item_keys:
                     shop['urls'] = item['urls']
                 if 'metro' in item_keys:
-                    item['nearest_metro_stations'] = []
+                    shop['nearest_metro_stations'] = []
                     for metro_station in item['metro']:
-                        metro_station_dict = {''}
-                        item['nearset_metro_stations'].append()
+                        metro_station_dict = {'station_name' : metro_station['name'],
+                                              'station_distance': metro_station['distanceValue']}
+                        shop['nearset_metro_stations'].append(metro_station_dict)
+                if 'stops' in item_keys:
+                    shop['nearest_bus_stops'] = []
+                    for bus_stop in item['stops']:
+                        bus_stop_dict = {'bus_stop_name' : bus_stop['name'],
+                                         'bus_stop_distance' : bus_stop['distanceValue']}
+                        shop['nearest_bus_stops'].append(bus_stop_dict)
+                if 'workingTimeText' in item_keys:
+                    shop['working_time'] = item['workingTimeText']
+                if 'socialLinks' in item_keys:
+                    shop['social_links'] = item['socialLinks']
+
 
                 if item['type'] == 'business' and shop not in data:
                     data.append(shop)
