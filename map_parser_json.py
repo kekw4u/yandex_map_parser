@@ -74,7 +74,6 @@ class YandexMapParser:
             log_text = log["message"]
             log_json = json.loads(log["message"])["message"]
             try:
-                # TODO: Фильтровать ответы, наверное, можно лучше
                 if ("api/search" in log_text):
                     try:
                         request_id = log_json['params']['requestId']
