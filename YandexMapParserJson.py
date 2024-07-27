@@ -7,8 +7,8 @@ from selenium.webdriver.common.actions.wheel_input import ScrollOrigin
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 from time import sleep
-
 
 class YandexMapParser:
     URL = 'https://yandex.ru/maps/'
@@ -42,31 +42,16 @@ class YandexMapParser:
 
 
     def __get_responses(self) -> list[Any | None]:
+
         options = self.__chrome_options()
 
         driver = webdriver.Chrome(options)
         driver.get(self.URL)
 
         wait = WebDriverWait(driver, self.RESPONSE_WAITING_TIME, poll_frequency=0.5)
-
         search_bar = wait.until(EC.visibility_of_element_located(self.SEARCH_BAR_CONDITIONS))
 
-        #? возможно, ввод запроса стоит сделать отдельным методом
-        search_bar.send_keys(f'{self.city} {self.district}')
-        search_bar.send_keys(Keys.ENTER)
-
-        #TODO: подумать насчёт ожидания нажатия клавиши поиска
-        sleep(self.CLICK_WAITING_TIME)
-
-        wait.until(EC.visibility_of_element_located(self.SEARCH_BUTTON_CONDITIONS))
-
-        search_bar.send_keys(self.shop)
-        search_bar.send_keys(Keys.ENTER)
-
-        #TODO: аналогично
-        sleep(self.CLICK_WAITING_TIME)
-
-        wait.until(EC.visibility_of_element_located(self.SEARCH_BUTTON_CONDITIONS))
+        self.__insert_querry(search_bar, wait)
 
         side_panel = wait.until(EC.visibility_of_element_located(self.SIDE_PANEL_CONDITIONS))
         scroll_origin = ScrollOrigin.from_element(side_panel)
@@ -82,27 +67,35 @@ class YandexMapParser:
             except:
                 continue
 
-
-        #? объявить как отдельный статический метод класса
-        def process_log(log: dict) -> dict:
-            log_text = log["message"]
-            log_json = json.loads(log["message"])["message"]
-            try:
-                if ("api/search" in log_text):
-                    try:
-                        request_id = log_json['params']['requestId']
-                        body = driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': request_id})
-                        body_dict = json.loads(body['body'])
-                        if "totalResultCount" in body_dict['data']:
-                            return body_dict
-                    except:
-                        return
-            except:
-                return
-
         logs = driver.get_log("performance")
-        responses = [process_log(log) for log in logs if process_log(log) != None]
+        responses = [YandexMapParser.__process_log(log, driver) for log in logs 
+                     if YandexMapParser.__process_log(log, driver) != None]
         return responses
+
+
+    def __insert_querry(self, search_bar: WebElement, wait: WebDriverWait) -> None:
+        for part in [f'{self.city} {self.district}', f' {self.shop}']:
+            search_bar.send_keys(part, Keys.ENTER)
+            sleep(self.CLICK_WAITING_TIME)
+            wait.until(EC.visibility_of_element_located(self.SEARCH_BUTTON_CONDITIONS))
+
+
+    @staticmethod
+    def __process_log(log: dict, driver: webdriver) -> dict:
+        log_text = log["message"]
+        log_json = json.loads(log["message"])["message"]
+        try:
+            if ("api/search" in log_text):
+                try:
+                    request_id = log_json['params']['requestId']
+                    body = driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': request_id})
+                    body_dict = json.loads(body['body'])
+                    if "totalResultCount" in body_dict['data']:
+                        return body_dict
+                except:
+                    return
+        except:
+            return
 
 
     def __parse_responses(self) -> list[dict]:
@@ -113,17 +106,12 @@ class YandexMapParser:
             for item in response['data']['items']:
                 shop = {}
                 item_keys = item.keys()
-                shop['title'] = item['title']
-                shop['address'] = item['address']
-
-                if 'ratingData' in item_keys:
-                    shop['rating'] = item['ratingData']
-
-                if 'phones' in item_keys:
-                    shop['phones'] = item['phones']
-
-                if 'urls' in item_keys:
-                    shop['urls'] = item['urls']
+                params = ['title', 'address', 'ratingData', 'phones', 
+                          'urls', 'workingTimeText', 'socialLinks']
+                
+                for param in params:
+                    if param in item_keys:
+                        shop[param] = item[param]
 
                 if 'metro' in item_keys:
                     shop['nearest_metro_stations'] = []
@@ -138,12 +126,6 @@ class YandexMapParser:
                         bus_stop_dict = {'bus_stop_name': bus_stop['name'],
                                          'bus_stop_distance': bus_stop['distanceValue']}
                         shop['nearest_bus_stops'].append(bus_stop_dict)
-
-                if 'workingTimeText' in item_keys:
-                    shop['working_time'] = item['workingTimeText']
-
-                if 'socialLinks' in item_keys:
-                    shop['social_links'] = item['socialLinks']
 
                 if item['type'] == 'business' and shop not in data:
                     data.append(shop)
