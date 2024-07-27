@@ -135,5 +135,5 @@ class YandexMapParser:
     def upload_data(self) -> None:
         data = self.__parse_responses()
         filename = f'data/{self.city} {self.district} {self.shop}.json'
-        with open(filename, mode='w', encoding='utf-8') as fp:
-            fp.write(json.dumps(data))
+        with open(filename, 'w', encoding='utf-8') as json_file:
+            json.dump(data, json_file, ensure_ascii=False)
