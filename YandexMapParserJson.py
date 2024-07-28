@@ -1,5 +1,7 @@
 import json
 from typing import List, Any
+
+import selenium.common.exceptions
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver import ActionChains
@@ -16,22 +18,21 @@ class YandexMapParser:
     URL = 'https://yandex.ru/maps/'
     RESPONSE_WAITING_TIME = 15
     SCROLL_PAUSE_TIME = 1
-    CLICK_WAITING_TIME = 0.5
+    CLICK_WAITING_TIME = 1
     DEFAULT_HEIGHT = 2000
-
 
     SEARCH_BAR_CONDITIONS = (By.CLASS_NAME, "input__control")
     SIDE_PANEL_CONDITIONS = (By.CLASS_NAME, "search-list-view__content")
-    SEARCH_BUTTON_CONDITIONS = (
-        By.XPATH, "//button[@type='submit' and @aria-haspopup='false']")
-
+    SEARCH_BUTTON_CONDITIONS = (By.XPATH, "//button[@type='submit' and @aria-haspopup='false']")
+    ONE_SHOP_CARD_CLASS = "business-card-view__main-wrapper"
+    END_OF_LIST_CLASS = "add-business-view"
 
     def __init__(self, cities: list, districts: list, shops: list) -> None:
         self.cities = cities if isinstance(cities, list) else [cities]
         self.districts = districts if isinstance(districts, list) else [districts]
         self.shops = shops if isinstance(shops, list) else [shops]
 
-
+        
     @staticmethod
     def __chrome_options() -> webdriver.ChromeOptions:
         # service = webdriver.ChromeService(executable_path="/usr/bin/chromedriver")
@@ -45,7 +46,7 @@ class YandexMapParser:
                                {'performance': 'ALL', 'browser': 'ALL'})
         return options
 
-
+      
     @staticmethod
     def __get_responses(querry: list[str]) -> list[Any | None]:
 
@@ -66,6 +67,15 @@ class YandexMapParser:
         side_panel = wait.until(
             EC.visibility_of_element_located(
                 YandexMapParser.SIDE_PANEL_CONDITIONS))
+
+        try:
+            driver.find_element(By.CLASS_NAME, self.ONE_SHOP_CARD_CLASS)
+            logs = driver.get_log("performance")
+            responses = [YandexMapParser.__process_log(log, driver) for log in logs
+                         if YandexMapParser.__process_log(log, driver) is not None]
+            return responses
+        except selenium.common.exceptions.NoSuchElementException:
+            side_panel = wait.until(EC.visibility_of_element_located(self.SIDE_PANEL_CONDITIONS))
 
         scroll_origin = ScrollOrigin.from_element(side_panel)
         total_height = YandexMapParser.DEFAULT_HEIGHT
@@ -100,7 +110,6 @@ class YandexMapParser:
                 EC.visibility_of_element_located(
                     YandexMapParser.SEARCH_BUTTON_CONDITIONS))
 
-
     @staticmethod
     def __process_log(log: dict, driver: webdriver) -> dict:
         log_text = log["message"]
@@ -119,7 +128,7 @@ class YandexMapParser:
         except:
             return
 
-
+          
     @staticmethod
     def __parse_responses(querry: list[str]) -> list[dict]:
         data = []
@@ -157,7 +166,7 @@ class YandexMapParser:
                     data.append(shop)
         return data
 
-
+      
     @staticmethod
     def upload_data(querry: list[str]) -> None:
         data = YandexMapParser.__parse_responses(querry)
