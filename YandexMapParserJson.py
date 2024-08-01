@@ -1,7 +1,7 @@
 import json
 from typing import Any
+from time import sleep
 
-from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver import ActionChains
@@ -10,7 +10,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
-from time import sleep
 
 
 class YandexMapParser:
@@ -31,8 +30,7 @@ class YandexMapParser:
 
     def __init__(self, cities: list, districts: list, shops: list) -> None:
         self.cities = cities if isinstance(cities, list) else [cities]
-        self.districts = districts if isinstance(
-            districts, list) else [districts]
+        self.districts = districts if isinstance(districts, list) else [districts]
         self.shops = shops if isinstance(shops, list) else [shops]
 
 
@@ -50,7 +48,7 @@ class YandexMapParser:
 
 
     @staticmethod
-    def __get_responses(querry: list[str]) -> list[Any | None]:
+    def __get_responses(query: list[str]) -> list[Any | None]:
         options = YandexMapParser.__chrome_options()
 
         driver = webdriver.Chrome(options)
@@ -63,7 +61,7 @@ class YandexMapParser:
             EC.visibility_of_element_located(
                 (By.CLASS_NAME, YandexMapParser.SEARCH_BAR_CLASS)))
 
-        YandexMapParser.__insert_querry(search_bar, querry, wait)
+        YandexMapParser.__insert_query(search_bar, query, wait)
 
         if not driver.find_elements(By.CLASS_NAME, YandexMapParser.ONE_SHOP_CARD_CLASS):
             YandexMapParser.__scroll(driver, wait)
@@ -96,9 +94,9 @@ class YandexMapParser:
 
 
     @staticmethod
-    def __insert_querry(search_bar: WebElement,
-                        querry: list[str], wait: WebDriverWait) -> None:
-        city, district, shop = querry
+    def __insert_query(search_bar: WebElement,
+                        query: list[str], wait: WebDriverWait) -> None:
+        city, district, shop = query
         for part in [f'{city} {district}', f' {shop}']:
             search_bar.send_keys(part, Keys.ENTER)
 
@@ -114,7 +112,7 @@ class YandexMapParser:
         log_text = log["message"]
         log_json = json.loads(log["message"])["message"]
         try:
-            if ("api/search" in log_text):
+            if "api/search" in log_text:
                 try:
                     request_id = log_json['params']['requestId']
                     body = driver.execute_cdp_cmd('Network.getResponseBody',
@@ -129,47 +127,50 @@ class YandexMapParser:
 
 
     @staticmethod
-    def __parse_responses(querry: list[str]) -> list[dict]:
+    def __parse_responses(query: list[str]) -> list[dict]:
         data = []
-        responses = YandexMapParser.__get_responses(querry)
+        responses = YandexMapParser.__get_responses(query)
 
         for response in responses:
             for item in response['data']['items']:
-                shop = {}
-                item_keys = item.keys()
-                params = ['title', 'address', 'ratingData', 'phones',
-                          'urls', 'workingTimeText', 'socialLinks']
+                if item['type'] != 'business':
+                    continue
+                else:
+                    shop = {}
+                    item_keys = item.keys()
+                    params = ['title', 'address', 'ratingData', 'phones',
+                              'urls', 'workingTimeText', 'socialLinks']
 
-                for param in params:
-                    if param in item_keys:
-                        shop[param] = item[param]
+                    for param in params:
+                        if param in item_keys:
+                            shop[param] = item[param]
 
-                if 'metro' in item_keys:
-                    shop['nearest_metro_stations'] = []
-                    for metro_station in item['metro']:
-                        metro_station_dict = {
-                            'station_name': metro_station['name'],
-                            'station_distance': metro_station['distanceValue']}
-                        shop['nearest_metro_stations'].append(
-                            metro_station_dict)
+                    if 'metro' in item_keys:
+                        shop['nearest_metro_stations'] = []
+                        for metro_station in item['metro']:
+                            metro_station_dict = {
+                                'station_name': metro_station['name'],
+                                'station_distance': metro_station['distanceValue']}
+                            shop['nearest_metro_stations'].append(
+                                metro_station_dict)
 
-                if 'stops' in item_keys:
-                    shop['nearest_bus_stops'] = []
-                    for bus_stop in item['stops']:
-                        bus_stop_dict = {
-                            'bus_stop_name': bus_stop['name'],
-                            'bus_stop_distance': bus_stop['distanceValue']}
-                        shop['nearest_bus_stops'].append(bus_stop_dict)
+                    if 'stops' in item_keys:
+                        shop['nearest_bus_stops'] = []
+                        for bus_stop in item['stops']:
+                            bus_stop_dict = {
+                                'bus_stop_name': bus_stop['name'],
+                                'bus_stop_distance': bus_stop['distanceValue']}
+                            shop['nearest_bus_stops'].append(bus_stop_dict)
 
-                if item['type'] == 'business' and shop not in data:
-                    data.append(shop)
+                    if shop not in data:
+                        data.append(shop)
         return data
 
 
     @staticmethod
-    def upload_data(querry: list[str]) -> None:
-        data = YandexMapParser.__parse_responses(querry)
-        city, district, shop = querry
+    def upload_data(query: list[str]) -> None:
+        data = YandexMapParser.__parse_responses(query)
+        city, district, shop = query
         filename = f'data/{city} {district} {shop}.json'
         with open(filename, mode='w', encoding='utf-8') as json_file:
             json.dump(data, json_file, ensure_ascii=False)
