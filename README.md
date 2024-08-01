@@ -5,7 +5,9 @@
 There is very intresting objective for creating this parser
 
 # Issues
-- [ ] #9
+- [x] https://github.com/kekw4u/yandex_map_parser/issues/6
+- [x] https://github.com/kekw4u/yandex_map_parser/issues/7
+- [ ] https://github.com/kekw4u/yandex_map_parser/issues/9
 
 # Installation
 ```
