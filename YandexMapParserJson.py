@@ -106,24 +106,21 @@ class YandexMapParser:
                 EC.visibility_of_element_located(
                     (By.XPATH, YandexMapParser.SEARCH_BUTTON_XPATH)))
 
-
     @staticmethod
     def __process_log(log: dict, driver: webdriver) -> dict:
         log_text = log["message"]
         log_json = json.loads(log["message"])["message"]
-        try:
-            if "api/search" in log_text:
-                try:
-                    request_id = log_json['params']['requestId']
-                    body = driver.execute_cdp_cmd('Network.getResponseBody',
-                                                  {'requestId': request_id})
-                    body_dict = json.loads(body['body'])
-                    if "totalResultCount" in body_dict['data']:
-                        return body_dict
-                except:
-                    return
-        except:
-            return
+
+        if "api/search" in log_text and 'params' in log_json \
+            and 'requestId' in log_json['params']:
+
+            request_id = log_json['params']['requestId']
+            body = driver.execute_cdp_cmd('Network.getResponseBody',
+                                          {'requestId': request_id})
+            body_dict = json.loads(body['body'])
+            if 'data' in body_dict and "totalResultCount" in body_dict['data']:
+                return body_dict
+
 
 
     @staticmethod
@@ -133,9 +130,7 @@ class YandexMapParser:
 
         for response in responses:
             for item in response['data']['items']:
-                if item['type'] != 'business':
-                    continue
-                else:
+                if item['type'] == 'business':
                     shop = {}
                     item_keys = item.keys()
                     params = ['title', 'address', 'ratingData', 'phones',
