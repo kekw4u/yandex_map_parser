@@ -1,6 +1,6 @@
 import json
 from typing import Any
-from time import sleep
+from time import sleep, time
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -115,12 +115,15 @@ class YandexMapParser:
             and 'requestId' in log_json['params']:
 
             request_id = log_json['params']['requestId']
-            body = driver.execute_cdp_cmd('Network.getResponseBody',
+            try:
+                body = driver.execute_cdp_cmd('Network.getResponseBody',
                                           {'requestId': request_id})
+            except:
+                return None
+            
             body_dict = json.loads(body['body'])
             if 'data' in body_dict and "totalResultCount" in body_dict['data']:
                 return body_dict
-
 
 
     @staticmethod
@@ -128,7 +131,15 @@ class YandexMapParser:
         data = []
         responses = YandexMapParser.__get_responses(query)
 
+        print('[INFO] Start parsing responses...')
+        responses_count = len(responses)
+        count = shops_count = 0
+
         for response in responses:
+
+            count += 1
+            print(f'[+] Responses parsed {count}/{responses_count}')
+
             for item in response['data']['items']:
                 if item['type'] == 'business':
                     shop = {}
@@ -159,16 +170,24 @@ class YandexMapParser:
 
                     if shop not in data:
                         data.append(shop)
+                        shops_count += 1
+                        
+        print(f'[SUCCESS]\n[INFO] {shops_count} shops were parsed')
         return data
 
 
     @staticmethod
     def upload_data(query: list[str]) -> None:
+        start = time()
+        
         data = YandexMapParser.__parse_responses(query)
         city, district, shop = query
         filename = f'data/{city} {district} {shop}.json'
         with open(filename, mode='w', encoding='utf-8') as json_file:
             json.dump(data, json_file, ensure_ascii=False)
+
+        finish = time()
+        print(f'[INFO] Executable time: {round(finish - start, 3)} sec')    
 
 
     def upload_all_data(self) -> None:
