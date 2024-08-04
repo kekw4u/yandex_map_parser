@@ -28,10 +28,10 @@ class YandexMapParser:
     SEARCH_BUTTON_XPATH = "//button[@type='submit' and @aria-haspopup='false']"
 
 
-    def __init__(self, cities: list, districts: list, shops: list) -> None:
+    def __init__(self, cities: list, districts: list, objects: list) -> None:
         self.cities = cities if isinstance(cities, list) else [cities]
         self.districts = districts if isinstance(districts, list) else [districts]
-        self.shops = shops if isinstance(shops, list) else [shops]
+        self.objects = objects if isinstance(objects, list) else [objects]
 
 
     @staticmethod
@@ -96,8 +96,8 @@ class YandexMapParser:
     @staticmethod
     def __insert_query(search_bar: WebElement,
                         query: list[str], wait: WebDriverWait) -> None:
-        city, district, shop = query
-        for part in [f'{city} {district}', f' {shop}']:
+        city, district, object = query
+        for part in [f'{city} {district}', f' {object}']:
             search_bar.send_keys(part, Keys.ENTER)
 
             sleep(YandexMapParser.CLICK_WAITING_TIME)
@@ -131,48 +131,46 @@ class YandexMapParser:
         data = []
         responses = YandexMapParser.__get_responses(query)
 
-        print('[INFO] Start parsing responses...')
-        responses_count = len(responses)
-        count = shops_count = 0
+        print(f'[INFO] Got {len(responses)} responses')
+        print(f'[INFO] Start parsing responses...')
+        objects_count = 0
 
         for response in responses:
-
-            count += 1
-            print(f'[+] Responses parsed {count}/{responses_count}')
-
             for item in response['data']['items']:
                 if item['type'] == 'business':
-                    shop = {}
+                    object = {}
                     item_keys = item.keys()
                     params = ['title', 'address', 'ratingData', 'phones',
                               'urls', 'workingTimeText', 'socialLinks']
 
                     for param in params:
                         if param in item_keys:
-                            shop[param] = item[param]
+                            object[param] = item[param]
 
                     if 'metro' in item_keys:
-                        shop['nearest_metro_stations'] = []
+                        object['nearest_metro_stations'] = []
                         for metro_station in item['metro']:
                             metro_station_dict = {
                                 'station_name': metro_station['name'],
                                 'station_distance': metro_station['distanceValue']}
-                            shop['nearest_metro_stations'].append(
+                            object['nearest_metro_stations'].append(
                                 metro_station_dict)
 
                     if 'stops' in item_keys:
-                        shop['nearest_bus_stops'] = []
+                        object['nearest_bus_stops'] = []
                         for bus_stop in item['stops']:
                             bus_stop_dict = {
                                 'bus_stop_name': bus_stop['name'],
                                 'bus_stop_distance': bus_stop['distanceValue']}
-                            shop['nearest_bus_stops'].append(bus_stop_dict)
+                            object['nearest_bus_stops'].append(bus_stop_dict)
 
-                    if shop not in data:
-                        data.append(shop)
-                        shops_count += 1
+                    if object not in data:
+                        data.append(object)
+                        objects_count += 1
                         
-        print(f'[SUCCESS]\n[INFO] {shops_count} shops were parsed')
+        # Вывод слова зелёным цветом (возможно, стоит подключить библиотеку)
+        print(f'\033[32m[SUCCESS]\033[0m')
+        print(f'[INFO] {objects_count} objects were parsed')
         return data
 
 
@@ -181,10 +179,10 @@ class YandexMapParser:
         start = time()
         
         data = YandexMapParser.__parse_responses(query)
-        city, district, shop = query
-        filename = f'data/{city} {district} {shop}.json'
+        city, district, object = query
+        filename = f'data/{city} {district} {object}.json'
         with open(filename, mode='w', encoding='utf-8') as json_file:
-            json.dump(data, json_file, ensure_ascii=False)
+            json.dump(data, json_file, ensure_ascii=False, indent=4)
 
         finish = time()
         print(f'[INFO] Executable time: {round(finish - start, 3)} sec')    
@@ -193,5 +191,5 @@ class YandexMapParser:
     def upload_all_data(self) -> None:
         for city in self.cities:
             for district in self.districts:
-                for shop in self.shops:
-                    self.upload_data([city, district, shop])
+                for object in self.objects:
+                    self.upload_data([city, district, object])
