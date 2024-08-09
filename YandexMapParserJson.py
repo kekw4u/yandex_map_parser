@@ -13,13 +13,12 @@ from selenium.webdriver.remote.webelement import WebElement
 
 
 class YandexMapParser:
-
     URL = 'https://yandex.ru/maps/'
     RESPONSE_WAITING_TIME = 15
+    TIMEOUT_LOADING_COUNTER = 15
     SCROLL_PAUSE_TIME = 0.5
     CLICK_WAITING_TIME = 1
     DEFAULT_HEIGHT = 2000
-
 
     SEARCH_BAR_CLASS = "input__control"
     SIDE_PANEL_CLASS = "search-list-view__content"
@@ -27,12 +26,10 @@ class YandexMapParser:
     END_OF_LIST_CLASS = "add-business-view"
     SEARCH_BUTTON_XPATH = "//button[@type='submit' and @aria-haspopup='false']"
 
-
     def __init__(self, cities: list, districts: list, shops: list) -> None:
         self.cities = cities if isinstance(cities, list) else [cities]
         self.districts = districts if isinstance(districts, list) else [districts]
         self.shops = shops if isinstance(shops, list) else [shops]
-
 
     @staticmethod
     def __chrome_options() -> webdriver.ChromeOptions:
@@ -45,7 +42,6 @@ class YandexMapParser:
         options.set_capability('goog:loggingPrefs',
                                {'performance': 'ALL', 'browser': 'ALL'})
         return options
-
 
     @staticmethod
     def __get_responses(query: list[str]) -> list[Any | None]:
@@ -66,13 +62,12 @@ class YandexMapParser:
         if not driver.find_elements(By.CLASS_NAME, YandexMapParser.ONE_SHOP_CARD_CLASS):
             YandexMapParser.__scroll(driver, wait)
 
-        logs = driver.get_log("performance")        
-        responses = [response for response in 
-                     [YandexMapParser.__process_log(log, driver) for log in logs] 
+        logs = driver.get_log("performance")
+        responses = [response for response in
+                     [YandexMapParser.__process_log(log, driver) for log in logs]
                      if response != None]
 
         return responses
-
 
     @staticmethod
     def __scroll(driver: webdriver, wait: WebDriverWait) -> None:
@@ -81,21 +76,29 @@ class YandexMapParser:
 
         scroll_origin = ScrollOrigin.from_element(side_panel)
         total_height = YandexMapParser.DEFAULT_HEIGHT
+        height_counter = 0
+        last_height = side_panel.size['height']
 
         while True:
-            if driver.find_elements(By.CLASS_NAME, YandexMapParser.END_OF_LIST_CLASS):
+            if driver.find_elements(By.CLASS_NAME, YandexMapParser.END_OF_LIST_CLASS) \
+                    or height_counter == YandexMapParser.TIMEOUT_LOADING_COUNTER:
                 break
-
             ActionChains(driver).scroll_from_origin(
                 scroll_origin, 0, total_height).perform()
             sleep(YandexMapParser.SCROLL_PAUSE_TIME)
-
             total_height += YandexMapParser.DEFAULT_HEIGHT
+            current_height = side_panel.size['height']
 
+            if last_height == current_height:
+                height_counter += 1
+            else:
+                height_counter = 0
+                last_height = current_height
+            print(height_counter)
 
     @staticmethod
     def __insert_query(search_bar: WebElement,
-                        query: list[str], wait: WebDriverWait) -> None:
+                       query: list[str], wait: WebDriverWait) -> None:
         city, district, shop = query
         for part in [f'{city} {district}', f' {shop}']:
             search_bar.send_keys(part, Keys.ENTER)
@@ -112,16 +115,19 @@ class YandexMapParser:
         log_json = json.loads(log["message"])["message"]
 
         if "api/search" in log_text and 'params' in log_json \
-            and 'requestId' in log_json['params']:
+                and 'requestId' in log_json['params']:
 
             request_id = log_json['params']['requestId']
-            body = driver.execute_cdp_cmd('Network.getResponseBody',
-                                          {'requestId': request_id})
-            body_dict = json.loads(body['body'])
+
+            try:
+                body = driver.execute_cdp_cmd('Network.getResponseBody',
+                                              {'requestId': request_id})
+                body_dict = json.loads(body['body'])
+            except:
+                return None
+
             if 'data' in body_dict and "totalResultCount" in body_dict['data']:
                 return body_dict
-
-
 
     @staticmethod
     def __parse_responses(query: list[str]) -> list[dict]:
@@ -161,7 +167,6 @@ class YandexMapParser:
                         data.append(shop)
         return data
 
-
     @staticmethod
     def upload_data(query: list[str]) -> None:
         data = YandexMapParser.__parse_responses(query)
@@ -169,7 +174,6 @@ class YandexMapParser:
         filename = f'data/{city} {district} {shop}.json'
         with open(filename, mode='w', encoding='utf-8') as json_file:
             json.dump(data, json_file, ensure_ascii=False)
-
 
     def upload_all_data(self) -> None:
         for city in self.cities:
