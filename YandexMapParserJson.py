@@ -94,7 +94,6 @@ class YandexMapParser:
             else:
                 height_counter = 0
                 last_height = current_height
-            print(height_counter)
 
     @staticmethod
     def __insert_query(search_bar: WebElement,
